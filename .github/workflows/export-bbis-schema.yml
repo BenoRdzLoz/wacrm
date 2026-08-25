@@ -1,0 +1,47 @@
+name: Export BBIS WACRM schema
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-bbis-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build custom-schema SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          {
+            echo "-- Generated from upstream wacrm migrations"
+            echo "-- Target schema is created separately in Supabase"
+            echo "SET search_path TO bbis_wacrm, public, extensions;"
+            for f in $(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+              echo
+              echo "-- ============================================================"
+              echo "-- SOURCE: $f"
+              echo "-- ============================================================"
+              echo "SET search_path TO bbis_wacrm, public, extensions;"
+              cat "$f"
+              echo
+            done
+          } > dist/bbis_wacrm_all.sql
+          wc -l dist/bbis_wacrm_all.sql
+          wc -c dist/bbis_wacrm_all.sql
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bbis-wacrm-schema
+          path: dist/bbis_wacrm_all.sql
+          if-no-files-found: error
+          retention-days: 3
