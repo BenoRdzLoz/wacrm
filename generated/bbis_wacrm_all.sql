@@ -1,5 +1,5 @@
 -- Generated from upstream wacrm migrations
--- Target schema is created separately in Supabase
+-- All WACRM public-schema references are rewritten to bbis_wacrm
 SET search_path TO bbis_wacrm, public, extensions;
 
 -- ============================================================
@@ -381,16 +381,16 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON broadcasts FOR EACH ROW EXECUTE F
 -- insert fails — profile can be created later if needed.
 -- ============================================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS bbis_wacrm.handle_new_user();
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE OR REPLACE FUNCTION bbis_wacrm.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, full_name, email)
+  INSERT INTO bbis_wacrm.profiles (user_id, full_name, email)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
@@ -403,11 +403,11 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
+ALTER FUNCTION bbis_wacrm.handle_new_user() OWNER TO postgres;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.handle_new_user();
 
 -- ============================================================
 -- ENABLE REALTIME for key tables (idempotent via DO block)
@@ -514,7 +514,7 @@ CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_broadcast_status
 -- ============================================================
 -- Aggregate trigger
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.recompute_broadcast_counts(bid UUID)
+CREATE OR REPLACE FUNCTION bbis_wacrm.recompute_broadcast_counts(bid UUID)
 RETURNS VOID AS $$
 BEGIN
   UPDATE broadcasts b SET
@@ -536,28 +536,28 @@ BEGIN
   ) agg
   WHERE b.id = bid;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
-CREATE OR REPLACE FUNCTION public.broadcast_recipient_aggregate_trigger()
+CREATE OR REPLACE FUNCTION bbis_wacrm.broadcast_recipient_aggregate_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    PERFORM public.recompute_broadcast_counts(OLD.broadcast_id);
+    PERFORM bbis_wacrm.recompute_broadcast_counts(OLD.broadcast_id);
     RETURN OLD;
   END IF;
 
   -- INSERT or UPDATE — only recompute when status changed (or on fresh insert)
   IF TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status THEN
-    PERFORM public.recompute_broadcast_counts(NEW.broadcast_id);
+    PERFORM bbis_wacrm.recompute_broadcast_counts(NEW.broadcast_id);
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 DROP TRIGGER IF EXISTS broadcast_recipients_aggregate ON broadcast_recipients;
 CREATE TRIGGER broadcast_recipients_aggregate
 AFTER INSERT OR UPDATE OR DELETE ON broadcast_recipients
-FOR EACH ROW EXECUTE FUNCTION public.broadcast_recipient_aggregate_trigger();
+FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.broadcast_recipient_aggregate_trigger();
 
 
 -- ============================================================
@@ -670,7 +670,7 @@ SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 
 -- Delta a single column by +1 / -1.
-CREATE OR REPLACE FUNCTION public._bcast_bump(bid UUID, col TEXT, delta INT)
+CREATE OR REPLACE FUNCTION bbis_wacrm._bcast_bump(bid UUID, col TEXT, delta INT)
 RETURNS VOID AS $$
 BEGIN
   EXECUTE format(
@@ -678,10 +678,10 @@ BEGIN
     col, col
   ) USING delta, bid;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 -- Columns this recipient's status contributes to.
-CREATE OR REPLACE FUNCTION public._bcast_cols_for_status(s TEXT)
+CREATE OR REPLACE FUNCTION bbis_wacrm._bcast_cols_for_status(s TEXT)
 RETURNS TEXT[] AS $$
 BEGIN
   -- 'pending' contributes to nothing.
@@ -696,7 +696,7 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Replace the trigger body with the incremental version.
-CREATE OR REPLACE FUNCTION public.broadcast_recipient_aggregate_trigger()
+CREATE OR REPLACE FUNCTION bbis_wacrm.broadcast_recipient_aggregate_trigger()
 RETURNS TRIGGER AS $$
 DECLARE
   old_cols TEXT[];
@@ -733,7 +733,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 -- Trigger itself remains the same (INSERT/UPDATE/DELETE) — just its
 -- body has been replaced.
@@ -741,7 +741,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- Safety net — rebuild counts from scratch. Retained as-is so ops can
 -- run it on demand if something ever drifts. Matches the incremental
 -- trigger's semantic model exactly.
-CREATE OR REPLACE FUNCTION public.recompute_broadcast_counts(bid UUID)
+CREATE OR REPLACE FUNCTION bbis_wacrm.recompute_broadcast_counts(bid UUID)
 RETURNS VOID AS $$
 BEGIN
   UPDATE broadcasts b SET
@@ -763,7 +763,7 @@ BEGIN
   ) agg
   WHERE b.id = bid;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 
 -- ============================================================
@@ -935,7 +935,7 @@ CREATE OR REPLACE FUNCTION increment_automation_execution_count(p_automation_id 
 RETURNS VOID
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
   UPDATE automations
   SET
@@ -1494,7 +1494,7 @@ CREATE OR REPLACE FUNCTION increment_flow_execution_count(p_flow_id UUID)
 RETURNS VOID
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
   UPDATE flows
   SET
@@ -2123,7 +2123,7 @@ CREATE OR REPLACE FUNCTION is_account_member(
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
   SELECT EXISTS (
     SELECT 1
@@ -2209,13 +2209,13 @@ BEGIN
   -- off auth.users instead of profiles, so every authenticated user is
   -- migrated and no domain row can be left without an account.
   -- full_name / email are NOT NULL on profiles, hence the COALESCE.
-  INSERT INTO public.profiles (user_id, full_name, email)
+  INSERT INTO bbis_wacrm.profiles (user_id, full_name, email)
   SELECT u.id,
          COALESCE(u.raw_user_meta_data->>'full_name', ''),
          COALESCE(u.email, '')
   FROM auth.users u
   WHERE NOT EXISTS (
-    SELECT 1 FROM public.profiles p WHERE p.user_id = u.id
+    SELECT 1 FROM bbis_wacrm.profiles p WHERE p.user_id = u.id
   );
 
   -- (1) Create one account per existing profile whose user does not
@@ -2360,7 +2360,7 @@ BEGIN
         'accounts', 'account_invitations'
       ])
   LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON bbis_wacrm.%I', pol.policyname, pol.tablename);
   END LOOP;
 END $$;
 
@@ -2637,13 +2637,13 @@ CREATE POLICY account_invitations_modify ON account_invitations FOR ALL
 -- it's still empty.
 -- ============================================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS bbis_wacrm.handle_new_user();
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE OR REPLACE FUNCTION bbis_wacrm.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_full_name TEXT;
@@ -2651,11 +2651,11 @@ DECLARE
 BEGIN
   v_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', '');
 
-  INSERT INTO public.accounts (name, owner_user_id)
+  INSERT INTO bbis_wacrm.accounts (name, owner_user_id)
   VALUES (COALESCE(NULLIF(v_full_name, ''), NEW.email, 'My account'), NEW.id)
   RETURNING id INTO v_account_id;
 
-  INSERT INTO public.profiles (user_id, full_name, email, account_id, account_role)
+  INSERT INTO bbis_wacrm.profiles (user_id, full_name, email, account_id, account_role)
   VALUES (NEW.id, v_full_name, NEW.email, v_account_id, 'owner');
 
   RETURN NEW;
@@ -2665,11 +2665,11 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
+ALTER FUNCTION bbis_wacrm.handle_new_user() OWNER TO postgres;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.handle_new_user();
 
 
 -- ============================================================
@@ -2712,13 +2712,13 @@ SET search_path TO bbis_wacrm, public, extensions;
 -- account. Cannot promote to / demote from 'owner' (that is the
 -- transfer endpoint). Cannot target self.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.set_member_role(
+CREATE OR REPLACE FUNCTION bbis_wacrm.set_member_role(
   p_user_id UUID,
   p_new_role account_role_enum
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_caller_account_id UUID;
@@ -2785,9 +2785,9 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.set_member_role(UUID, account_role_enum) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.set_member_role(UUID, account_role_enum) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.set_member_role(UUID, account_role_enum) TO authenticated;
+ALTER FUNCTION bbis_wacrm.set_member_role(UUID, account_role_enum) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.set_member_role(UUID, account_role_enum) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.set_member_role(UUID, account_role_enum) TO authenticated;
 
 -- ============================================================
 -- remove_account_member(p_user_id)
@@ -2802,12 +2802,12 @@ GRANT EXECUTE ON FUNCTION public.set_member_role(UUID, account_role_enum) TO aut
 --
 -- Cannot target the owner. Cannot target self.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.remove_account_member(
+CREATE OR REPLACE FUNCTION bbis_wacrm.remove_account_member(
   p_user_id UUID
 ) RETURNS UUID  -- the new personal account id
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_caller_account_id UUID;
@@ -2878,9 +2878,9 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.remove_account_member(UUID) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.remove_account_member(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.remove_account_member(UUID) TO authenticated;
+ALTER FUNCTION bbis_wacrm.remove_account_member(UUID) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.remove_account_member(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.remove_account_member(UUID) TO authenticated;
 
 -- ============================================================
 -- transfer_account_ownership(p_new_owner_user_id)
@@ -2892,12 +2892,12 @@ GRANT EXECUTE ON FUNCTION public.remove_account_member(UUID) TO authenticated;
 --
 -- Both writes happen in the same statement-level transaction.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.transfer_account_ownership(
+CREATE OR REPLACE FUNCTION bbis_wacrm.transfer_account_ownership(
   p_new_owner_user_id UUID
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_caller_account_id UUID;
@@ -2956,9 +2956,9 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.transfer_account_ownership(UUID) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.transfer_account_ownership(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.transfer_account_ownership(UUID) TO authenticated;
+ALTER FUNCTION bbis_wacrm.transfer_account_ownership(UUID) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.transfer_account_ownership(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.transfer_account_ownership(UUID) TO authenticated;
 
 
 -- ============================================================
@@ -3007,13 +3007,13 @@ SET search_path TO bbis_wacrm, public, extensions;
 -- enumeration risk is theoretical; rate-limiting the route on
 -- the IP layer adds belt-and-braces.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.peek_invitation(
+CREATE OR REPLACE FUNCTION bbis_wacrm.peek_invitation(
   p_token_hash TEXT
 ) RETURNS JSON
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_inv account_invitations%ROWTYPE;
@@ -3048,12 +3048,12 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.peek_invitation(TEXT) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.peek_invitation(TEXT) FROM PUBLIC;
+ALTER FUNCTION bbis_wacrm.peek_invitation(TEXT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.peek_invitation(TEXT) FROM PUBLIC;
 -- `anon` so the /join/<token> page can call this before the user
 -- signs in; `authenticated` so the same page works when already
 -- signed in (e.g. existing user clicks a forwarded link).
-GRANT EXECUTE ON FUNCTION public.peek_invitation(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.peek_invitation(TEXT) TO anon, authenticated;
 
 -- ============================================================
 -- redeem_invitation(p_token_hash text)
@@ -3089,12 +3089,12 @@ GRANT EXECUTE ON FUNCTION public.peek_invitation(TEXT) TO anon, authenticated;
 --      delete the caller's profile too, but step 4 already moved
 --      them to the new account, so the cascade is a no-op.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.redeem_invitation(
+CREATE OR REPLACE FUNCTION bbis_wacrm.redeem_invitation(
   p_token_hash TEXT
 ) RETURNS UUID  -- the joined account_id
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_caller_id UUID := auth.uid();
@@ -3199,9 +3199,9 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.redeem_invitation(TEXT) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.redeem_invitation(TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.redeem_invitation(TEXT) TO authenticated;
+ALTER FUNCTION bbis_wacrm.redeem_invitation(TEXT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.redeem_invitation(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.redeem_invitation(TEXT) TO authenticated;
 
 
 -- ============================================================
@@ -3288,7 +3288,7 @@ CREATE POLICY "Members can upload flow media"
       -- two accounts that happen to be in the same Supabase project
       -- can never accidentally collide.
       EXISTS (
-        SELECT 1 FROM public.profiles p
+        SELECT 1 FROM bbis_wacrm.profiles p
         WHERE p.user_id = auth.uid()
           AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
       )
@@ -3305,7 +3305,7 @@ CREATE POLICY "Members can update flow media"
     bucket_id = 'flow-media'
     AND (
       EXISTS (
-        SELECT 1 FROM public.profiles p
+        SELECT 1 FROM bbis_wacrm.profiles p
         WHERE p.user_id = auth.uid()
           AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
       )
@@ -3320,7 +3320,7 @@ CREATE POLICY "Members can delete flow media"
     bucket_id = 'flow-media'
     AND (
       EXISTS (
-        SELECT 1 FROM public.profiles p
+        SELECT 1 FROM bbis_wacrm.profiles p
         WHERE p.user_id = auth.uid()
           AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
       )
@@ -3411,11 +3411,11 @@ ALTER TABLE contacts
 --    SECURITY DEFINER so it can re-point rows across tables
 --    regardless of the caller's RLS; it only ever collapses exact
 --    normalized duplicates within the same account.
-CREATE OR REPLACE FUNCTION public.merge_duplicate_contacts()
+CREATE OR REPLACE FUNCTION bbis_wacrm.merge_duplicate_contacts()
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_group   RECORD;
@@ -3483,11 +3483,11 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.merge_duplicate_contacts() OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.merge_duplicate_contacts() FROM PUBLIC;
+ALTER FUNCTION bbis_wacrm.merge_duplicate_contacts() OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.merge_duplicate_contacts() FROM PUBLIC;
 
 -- Collapse whatever duplicates exist right now.
-SELECT public.merge_duplicate_contacts();
+SELECT bbis_wacrm.merge_duplicate_contacts();
 
 -- 3) Authoritative guarantee. Partial index defends against any
 --    empty normalized value (phone is NOT NULL, but belt-and-braces).
@@ -3593,7 +3593,7 @@ CREATE POLICY "Members can upload chat media"
   WITH CHECK (
     bucket_id = 'chat-media'
     AND EXISTS (
-      SELECT 1 FROM public.profiles p
+      SELECT 1 FROM bbis_wacrm.profiles p
       WHERE p.user_id = auth.uid()
         AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
     )
@@ -3605,7 +3605,7 @@ CREATE POLICY "Members can update chat media"
   USING (
     bucket_id = 'chat-media'
     AND EXISTS (
-      SELECT 1 FROM public.profiles p
+      SELECT 1 FROM bbis_wacrm.profiles p
       WHERE p.user_id = auth.uid()
         AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
     )
@@ -3617,7 +3617,7 @@ CREATE POLICY "Members can delete chat media"
   USING (
     bucket_id = 'chat-media'
     AND EXISTS (
-      SELECT 1 FROM public.profiles p
+      SELECT 1 FROM bbis_wacrm.profiles p
       WHERE p.user_id = auth.uid()
         AND ('account-' || p.account_id::text) = (storage.foldername(name))[1]
     )
@@ -3683,12 +3683,12 @@ CREATE POLICY member_presence_select ON member_presence FOR SELECT
 -- write despite the absence of a client write policy; the account
 -- is resolved from the caller's own profile, so a client can never
 -- spoof which account it appears in.
-CREATE OR REPLACE FUNCTION public.touch_presence(
+CREATE OR REPLACE FUNCTION bbis_wacrm.touch_presence(
   p_status TEXT DEFAULT 'online'
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_account_id UUID;
@@ -3767,7 +3767,7 @@ SET search_path TO bbis_wacrm, public, extensions;
 -- Idempotent — safe to run multiple times.
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.filter_contacts_by_tags(
+CREATE OR REPLACE FUNCTION bbis_wacrm.filter_contacts_by_tags(
   p_tag_ids UUID[],
   p_search TEXT DEFAULT NULL,
   p_limit INT DEFAULT 25,
@@ -3777,7 +3777,7 @@ RETURNS TABLE (contact contacts, total_count BIGINT)
 LANGUAGE sql
 STABLE
 SECURITY INVOKER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
   WITH matched AS (
     -- Distinct contacts having ANY of the selected tags (OR),
@@ -3807,9 +3807,9 @@ AS $$
   ORDER BY c.created_at DESC, c.id;
 $$;
 
-ALTER FUNCTION public.filter_contacts_by_tags(UUID[], TEXT, INT, INT) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.filter_contacts_by_tags(UUID[], TEXT, INT, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.filter_contacts_by_tags(UUID[], TEXT, INT, INT) TO authenticated;
+ALTER FUNCTION bbis_wacrm.filter_contacts_by_tags(UUID[], TEXT, INT, INT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.filter_contacts_by_tags(UUID[], TEXT, INT, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.filter_contacts_by_tags(UUID[], TEXT, INT, INT) TO authenticated;
 
 
 -- ============================================================
@@ -3965,7 +3965,7 @@ CREATE OR REPLACE FUNCTION notify_conversation_assigned()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_contact_name TEXT;
@@ -4133,7 +4133,7 @@ CREATE POLICY webhook_endpoints_delete ON webhook_endpoints FOR DELETE
 -- Only ever disables (never re-enables) — re-enabling is an explicit
 -- PATCH by an admin, which resets the counter.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.record_webhook_failure(
+CREATE OR REPLACE FUNCTION bbis_wacrm.record_webhook_failure(
   endpoint_id uuid,
   max_failures int
 )
@@ -4145,7 +4145,7 @@ RETURNS void AS $$
         ELSE is_active
       END
   WHERE id = endpoint_id;
-$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 
 -- ============================================================
@@ -4234,7 +4234,7 @@ CREATE POLICY ai_configs_delete ON ai_configs FOR DELETE
   USING (is_account_member(account_id, 'admin'));
 
 -- Keep updated_at fresh on every write.
-CREATE OR REPLACE FUNCTION public.update_ai_configs_updated_at()
+CREATE OR REPLACE FUNCTION bbis_wacrm.update_ai_configs_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
@@ -4246,7 +4246,7 @@ DROP TRIGGER IF EXISTS ai_configs_updated_at ON ai_configs;
 CREATE TRIGGER ai_configs_updated_at
   BEFORE UPDATE ON ai_configs
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_ai_configs_updated_at();
+  EXECUTE FUNCTION bbis_wacrm.update_ai_configs_updated_at();
 
 -- ============================================================
 -- Per-conversation auto-reply control.
@@ -4269,7 +4269,7 @@ ALTER TABLE conversations
 -- can ever be claimed. Returns true when a slot was claimed (the caller
 -- may send), false when the cap is already reached (skip).
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.claim_ai_reply_slot(
+CREATE OR REPLACE FUNCTION bbis_wacrm.claim_ai_reply_slot(
   conversation_id uuid,
   max_replies integer
 )
@@ -4282,7 +4282,7 @@ RETURNS boolean AS $$
     RETURNING 1
   )
   SELECT EXISTS (SELECT 1 FROM claimed);
-$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 -- The auto-reply bot claims slots under the service-role client (the
 -- inbound webhook has no auth.uid()), so it needs EXECUTE. SECURITY
@@ -4292,7 +4292,7 @@ $$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 -- privilege has been revoked (hardened / self-hosted Supabase), and the
 -- bot silently never replies. Only the service role claims slots, so we
 -- grant to it alone (mirrors 007 / 012). See migration 031 / issue #345.
-GRANT EXECUTE ON FUNCTION public.claim_ai_reply_slot(uuid, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.claim_ai_reply_slot(uuid, integer) TO service_role;
 
 
 -- ============================================================
@@ -4373,7 +4373,7 @@ DROP POLICY IF EXISTS ai_knowledge_documents_delete ON ai_knowledge_documents;
 CREATE POLICY ai_knowledge_documents_delete ON ai_knowledge_documents FOR DELETE
   USING (is_account_member(account_id, 'admin'));
 
-CREATE OR REPLACE FUNCTION public.update_ai_knowledge_documents_updated_at()
+CREATE OR REPLACE FUNCTION bbis_wacrm.update_ai_knowledge_documents_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
@@ -4385,7 +4385,7 @@ DROP TRIGGER IF EXISTS ai_knowledge_documents_updated_at ON ai_knowledge_documen
 CREATE TRIGGER ai_knowledge_documents_updated_at
   BEFORE UPDATE ON ai_knowledge_documents
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_ai_knowledge_documents_updated_at();
+  EXECUTE FUNCTION bbis_wacrm.update_ai_knowledge_documents_updated_at();
 
 -- ============================================================
 -- Chunks — retrieval units. `account_id` is denormalized off the
@@ -4453,7 +4453,7 @@ CREATE POLICY ai_knowledge_chunks_delete ON ai_knowledge_chunks FOR DELETE
 -- Lexical: full-text rank. `plainto_tsquery` turns a raw customer
 -- message into a query safely (no operator injection). Uses the same
 -- language-neutral `'simple'` config as the stored `fts` column.
-CREATE OR REPLACE FUNCTION public.match_ai_knowledge_fts(
+CREATE OR REPLACE FUNCTION bbis_wacrm.match_ai_knowledge_fts(
   p_account_id  uuid,
   p_query       text,
   p_match_count integer
@@ -4467,7 +4467,7 @@ RETURNS TABLE (id uuid, content text, rank real) AS $$
     AND c.fts @@ plainto_tsquery('simple', p_query)
   ORDER BY rank DESC
   LIMIT GREATEST(p_match_count, 0);
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 -- Semantic: cosine distance against the query embedding. Only rows
 -- that actually have an embedding participate.
@@ -4477,7 +4477,7 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 -- plain string, so there's no ambiguity in how PostgREST binds a JSON
 -- value to a `vector` parameter. Casting a literal to a constant vector
 -- still lets the HNSW index serve the `<=>` order-by.
-CREATE OR REPLACE FUNCTION public.match_ai_knowledge_semantic(
+CREATE OR REPLACE FUNCTION bbis_wacrm.match_ai_knowledge_semantic(
   p_account_id      uuid,
   p_query_embedding text,
   p_match_count     integer
@@ -4491,7 +4491,7 @@ RETURNS TABLE (id uuid, content text, distance real) AS $$
     AND c.embedding IS NOT NULL
   ORDER BY c.embedding <=> p_query_embedding::vector(1536)
   LIMIT GREATEST(p_match_count, 0);
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 -- Lock down EXECUTE (mirrors migrations 018 / 025). These are
 -- SECURITY DEFINER and would otherwise default to PUBLIC — i.e. the
@@ -4499,10 +4499,10 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 -- the passed account_id, would let an unauthenticated caller read any
 -- account's knowledge base. The draft path calls them as `authenticated`
 -- and the auto-reply bot as `service_role`.
-REVOKE ALL ON FUNCTION public.match_ai_knowledge_fts(uuid, text, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.match_ai_knowledge_fts(uuid, text, integer) TO authenticated, service_role;
-REVOKE ALL ON FUNCTION public.match_ai_knowledge_semantic(uuid, text, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.match_ai_knowledge_semantic(uuid, text, integer) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.match_ai_knowledge_fts(uuid, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_fts(uuid, text, integer) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, integer) TO authenticated, service_role;
 
 
 -- ============================================================
@@ -4535,7 +4535,7 @@ SET search_path TO bbis_wacrm, public, extensions;
 -- Idempotent — GRANT is a no-op when the privilege already exists.
 -- ============================================================
 
-GRANT EXECUTE ON FUNCTION public.claim_ai_reply_slot(uuid, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.claim_ai_reply_slot(uuid, integer) TO service_role;
 
 
 -- ============================================================
@@ -4588,7 +4588,7 @@ SET search_path TO bbis_wacrm, public, extensions;
 
 -- Lexical: full-text rank. Body unchanged from migration 030 —
 -- only SECURITY DEFINER → SECURITY INVOKER differs.
-CREATE OR REPLACE FUNCTION public.match_ai_knowledge_fts(
+CREATE OR REPLACE FUNCTION bbis_wacrm.match_ai_knowledge_fts(
   p_account_id  uuid,
   p_query       text,
   p_match_count integer
@@ -4602,11 +4602,11 @@ RETURNS TABLE (id uuid, content text, rank real) AS $$
     AND c.fts @@ plainto_tsquery('simple', p_query)
   ORDER BY rank DESC
   LIMIT GREATEST(p_match_count, 0);
-$$ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public;
+$$ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = bbis_wacrm, public;
 
 -- Semantic: cosine distance. Body unchanged from migration 030 —
 -- only SECURITY DEFINER → SECURITY INVOKER differs.
-CREATE OR REPLACE FUNCTION public.match_ai_knowledge_semantic(
+CREATE OR REPLACE FUNCTION bbis_wacrm.match_ai_knowledge_semantic(
   p_account_id      uuid,
   p_query_embedding text,
   p_match_count     integer
@@ -4620,14 +4620,14 @@ RETURNS TABLE (id uuid, content text, distance real) AS $$
     AND c.embedding IS NOT NULL
   ORDER BY c.embedding <=> p_query_embedding::vector(1536)
   LIMIT GREATEST(p_match_count, 0);
-$$ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public;
+$$ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = bbis_wacrm, public;
 
 -- Re-assert the EXECUTE grants (CREATE OR REPLACE preserves them,
 -- but keep them explicit and re-runnable — mirrors migration 030).
-REVOKE ALL ON FUNCTION public.match_ai_knowledge_fts(uuid, text, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.match_ai_knowledge_fts(uuid, text, integer) TO authenticated, service_role;
-REVOKE ALL ON FUNCTION public.match_ai_knowledge_semantic(uuid, text, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.match_ai_knowledge_semantic(uuid, text, integer) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.match_ai_knowledge_fts(uuid, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_fts(uuid, text, integer) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, integer) TO authenticated, service_role;
 
 -- ============================================================
 -- Manual validation (run against a live instance — no automated
@@ -4797,10 +4797,10 @@ SET search_path TO bbis_wacrm, public, extensions;
 --   the bottom); this migration was not run against a live database.
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.enforce_profile_privilege_columns()
+CREATE OR REPLACE FUNCTION bbis_wacrm.enforce_profile_privilege_columns()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 BEGIN
   IF (NEW.account_role IS DISTINCT FROM OLD.account_role
@@ -4815,12 +4815,12 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.enforce_profile_privilege_columns() OWNER TO postgres;
+ALTER FUNCTION bbis_wacrm.enforce_profile_privilege_columns() OWNER TO postgres;
 
-DROP TRIGGER IF EXISTS enforce_profile_privilege_columns ON public.profiles;
+DROP TRIGGER IF EXISTS enforce_profile_privilege_columns ON bbis_wacrm.profiles;
 CREATE TRIGGER enforce_profile_privilege_columns
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW EXECUTE FUNCTION public.enforce_profile_privilege_columns();
+  BEFORE UPDATE ON bbis_wacrm.profiles
+  FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.enforce_profile_privilege_columns();
 
 -- ============================================================
 -- Manual validation (run against a live instance — no automated
@@ -4950,11 +4950,11 @@ SET search_path TO bbis_wacrm, public, extensions;
 --    SECURITY DEFINER so it can re-point rows across tables
 --    regardless of the caller's RLS; it only ever collapses
 --    conversations that share the same (account_id, contact_id).
-CREATE OR REPLACE FUNCTION public.merge_duplicate_conversations()
+CREATE OR REPLACE FUNCTION bbis_wacrm.merge_duplicate_conversations()
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_group    RECORD;
@@ -5024,11 +5024,11 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.merge_duplicate_conversations() OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.merge_duplicate_conversations() FROM PUBLIC;
+ALTER FUNCTION bbis_wacrm.merge_duplicate_conversations() OWNER TO postgres;
+REVOKE ALL ON FUNCTION bbis_wacrm.merge_duplicate_conversations() FROM PUBLIC;
 
 -- Collapse whatever duplicates exist right now.
-SELECT public.merge_duplicate_conversations();
+SELECT bbis_wacrm.merge_duplicate_conversations();
 
 -- 2) Authoritative guarantee: one conversation per (account, contact).
 --    Every write path (inbound webhook, public-API resolver) now has a
@@ -5116,14 +5116,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_conversation_message_id
 -- the last-message summary in the same statement (matching the old
 -- code's semantics: last_message_at = now, not the Meta timestamp).
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.bump_conversation_on_inbound(
+CREATE OR REPLACE FUNCTION bbis_wacrm.bump_conversation_on_inbound(
   p_conversation_id UUID,
   p_last_message_text TEXT
 )
 RETURNS VOID
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
   UPDATE conversations
   SET unread_count      = COALESCE(unread_count, 0) + 1,
@@ -5135,10 +5135,10 @@ $$;
 
 -- Only the service role (webhook) calls this. Lock everyone else out
 -- so an authenticated user can't bump another account's unread count.
-REVOKE ALL ON FUNCTION public.bump_conversation_on_inbound(UUID, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.bump_conversation_on_inbound(UUID, TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.bump_conversation_on_inbound(UUID, TEXT) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.bump_conversation_on_inbound(UUID, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.bump_conversation_on_inbound(UUID, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION bbis_wacrm.bump_conversation_on_inbound(UUID, TEXT) FROM anon;
+REVOKE ALL ON FUNCTION bbis_wacrm.bump_conversation_on_inbound(UUID, TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.bump_conversation_on_inbound(UUID, TEXT) TO service_role;
 
 -- ============================================================
 -- #370 — atomic broadcast creation
@@ -5153,7 +5153,7 @@ GRANT EXECUTE ON FUNCTION public.bump_conversation_on_inbound(UUID, TEXT) TO ser
 -- owned by the aggregate trigger (migrations 003/005), same as the
 -- previous application-side insert.
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.create_broadcast_with_recipients(
+CREATE OR REPLACE FUNCTION bbis_wacrm.create_broadcast_with_recipients(
   p_account_id       UUID,
   p_user_id          UUID,
   p_name             TEXT,
@@ -5165,7 +5165,7 @@ CREATE OR REPLACE FUNCTION public.create_broadcast_with_recipients(
 RETURNS TABLE(broadcast_id UUID, recipient_id UUID, contact_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_broadcast_id UUID;
@@ -5192,10 +5192,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM anon;
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) TO service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM anon;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]) TO service_role;
 
 
 -- ============================================================
@@ -5264,11 +5264,11 @@ CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_broadcast_status
 -- new overload, and a DEFAULT on it would leave the 7-argument call
 -- ambiguous between the two.
 -- ============================================================
-DROP FUNCTION IF EXISTS public.create_broadcast_with_recipients(
+DROP FUNCTION IF EXISTS bbis_wacrm.create_broadcast_with_recipients(
   UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[]
 );
 
-CREATE OR REPLACE FUNCTION public.create_broadcast_with_recipients(
+CREATE OR REPLACE FUNCTION bbis_wacrm.create_broadcast_with_recipients(
   p_account_id        UUID,
   p_user_id           UUID,
   p_name              TEXT,
@@ -5281,7 +5281,7 @@ CREATE OR REPLACE FUNCTION public.create_broadcast_with_recipients(
 RETURNS TABLE(broadcast_id UUID, recipient_id UUID, contact_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = bbis_wacrm, public
 AS $$
 DECLARE
   v_broadcast_id UUID;
@@ -5313,10 +5313,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM anon;
-REVOKE ALL ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) TO service_role;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM anon;
+REVOKE ALL ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID, TEXT, TEXT, TEXT, INTEGER, UUID[], JSONB[]) TO service_role;
 
 
 -- ============================================================
