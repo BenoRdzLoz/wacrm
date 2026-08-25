@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+const DB_SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'bbis_wacrm'
+
 export async function createClient() {
   const cookieStore = await cookies()
 
@@ -8,6 +10,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema: DB_SCHEMA },
       cookies: {
         getAll() {
           return cookieStore.getAll()
