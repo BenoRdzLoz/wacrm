@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export-schema:
@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
+          mkdir -p generated
           {
             echo "-- Generated from upstream wacrm migrations"
             echo "-- Target schema is created separately in Supabase"
@@ -34,14 +34,28 @@ jobs:
               cat "$f"
               echo
             done
-          } > dist/bbis_wacrm_all.sql
-          wc -l dist/bbis_wacrm_all.sql
-          wc -c dist/bbis_wacrm_all.sql
+          } > generated/bbis_wacrm_all.sql
+          wc -l generated/bbis_wacrm_all.sql
+          wc -c generated/bbis_wacrm_all.sql
+
+      - name: Persist generated SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add generated/bbis_wacrm_all.sql
+          if git diff --cached --quiet; then
+            echo "Generated SQL unchanged"
+          else
+            git commit -m "chore: generate bbis_wacrm schema SQL"
+            git push
+          fi
 
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
         with:
           name: bbis-wacrm-schema
-          path: dist/bbis_wacrm_all.sql
+          path: generated/bbis_wacrm_all.sql
           if-no-files-found: error
           retention-days: 3
