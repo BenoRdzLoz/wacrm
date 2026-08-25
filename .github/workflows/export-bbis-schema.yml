@@ -16,41 +16,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build custom-schema SQL
+      - name: Build isolated migration set
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p generated
+          rm -rf generated/migrations
+          mkdir -p generated/migrations
+
+          for f in $(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            out="generated/migrations/$(basename "$f")"
+            {
+              echo "-- Generated from $f for BBIS WACRM"
+              echo "SET search_path TO bbis_wacrm, public, extensions;"
+              cat "$f"
+            } > "$out"
+
+            # Keep auth/storage schemas global, but move every CRM object that
+            # upstream explicitly qualified as public into bbis_wacrm.
+            sed -i \
+              -e 's/public\./bbis_wacrm\./g' \
+              -e 's/SET search_path = public/SET search_path = bbis_wacrm, public/g' \
+              -e 's/SET search_path TO public/SET search_path TO bbis_wacrm, public/g' \
+              -e 's/on_auth_user_created/bbis_wacrm_on_auth_user_created/g' \
+              "$out"
+          done
+
           {
             echo "-- Generated from upstream wacrm migrations"
-            echo "-- All WACRM public-schema references are rewritten to bbis_wacrm"
-            echo "SET search_path TO bbis_wacrm, public, extensions;"
-            for f in $(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "-- All WACRM CRM objects target bbis_wacrm"
+            for f in $(find generated/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
               echo
               echo "-- ============================================================"
               echo "-- SOURCE: $f"
               echo "-- ============================================================"
-              echo "SET search_path TO bbis_wacrm, public, extensions;"
               cat "$f"
               echo
             done
           } > generated/bbis_wacrm_all.sql
 
-          # The upstream template targets public. This fork intentionally
-          # isolates all CRM objects in bbis_wacrm while leaving auth/storage
-          # schemas untouched.
-          sed -i \
-            -e 's/public\./bbis_wacrm\./g' \
-            -e 's/SET search_path = public/SET search_path = bbis_wacrm, public/g' \
-            -e 's/SET search_path TO public/SET search_path TO bbis_wacrm, public/g' \
-            generated/bbis_wacrm_all.sql
-
-          wc -l generated/bbis_wacrm_all.sql
-          wc -c generated/bbis_wacrm_all.sql
-          if grep -n 'public\.' generated/bbis_wacrm_all.sql; then
+          if grep -R -n 'public\.' generated/migrations; then
             echo 'Unexpected public schema reference remains' >&2
             exit 1
           fi
+          grep -R -n 'bbis_wacrm_on_auth_user_created' generated/migrations || true
+          wc -c generated/bbis_wacrm_all.sql
 
       - name: Persist generated SQL
         shell: bash
@@ -58,11 +67,11 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add generated/bbis_wacrm_all.sql
+          git add generated/bbis_wacrm_all.sql generated/migrations
           if git diff --cached --quiet; then
             echo "Generated SQL unchanged"
           else
-            git commit -m "chore: generate isolated bbis_wacrm schema SQL"
+            git commit -m "chore: generate namespaced bbis_wacrm migrations"
             git push
           fi
 
@@ -70,6 +79,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bbis-wacrm-schema
-          path: generated/bbis_wacrm_all.sql
+          path: |
+            generated/bbis_wacrm_all.sql
+            generated/migrations/*.sql
           if-no-files-found: error
           retention-days: 3
