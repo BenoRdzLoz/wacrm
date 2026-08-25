@@ -1,10 +1,10 @@
 -- Generated from upstream wacrm migrations
--- All WACRM public-schema references are rewritten to bbis_wacrm
-SET search_path TO bbis_wacrm, public, extensions;
+-- All WACRM CRM objects target bbis_wacrm
 
 -- ============================================================
--- SOURCE: supabase/migrations/001_initial_schema.sql
+-- SOURCE: generated/migrations/001_initial_schema.sql
 -- ============================================================
+-- Generated from supabase/migrations/001_initial_schema.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Idempotent migration — safe to run multiple times.
@@ -380,7 +380,7 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON broadcasts FOR EACH ROW EXECUTE F
 -- EXCEPTION block ensures signup still succeeds even if profile
 -- insert fails — profile can be created later if needed.
 -- ============================================================
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP TRIGGER IF EXISTS bbis_wacrm_on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS bbis_wacrm.handle_new_user();
 
 CREATE OR REPLACE FUNCTION bbis_wacrm.handle_new_user()
@@ -405,7 +405,7 @@ $$;
 
 ALTER FUNCTION bbis_wacrm.handle_new_user() OWNER TO postgres;
 
-CREATE TRIGGER on_auth_user_created
+CREATE TRIGGER bbis_wacrm_on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.handle_new_user();
 
@@ -431,8 +431,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/002_pipelines_enhancements.sql
+-- SOURCE: generated/migrations/002_pipelines_enhancements.sql
 -- ============================================================
+-- Generated from supabase/migrations/002_pipelines_enhancements.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Pipeline enhancements:
@@ -471,8 +472,9 @@ ALTER TABLE deals
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/003_broadcast_recipient_wamid.sql
+-- SOURCE: generated/migrations/003_broadcast_recipient_wamid.sql
 -- ============================================================
+-- Generated from supabase/migrations/003_broadcast_recipient_wamid.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Broadcast recipient correlation + aggregate counts
@@ -561,8 +563,9 @@ FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.broadcast_recipient_aggregate_trigger()
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/004_contact_delete_set_null.sql
+-- SOURCE: generated/migrations/004_contact_delete_set_null.sql
 -- ============================================================
+-- Generated from supabase/migrations/004_contact_delete_set_null.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Allow contact deletion without wiping history.
@@ -632,8 +635,9 @@ ALTER TABLE deals
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/005_broadcast_counts_incremental.sql
+-- SOURCE: generated/migrations/005_broadcast_counts_incremental.sql
 -- ============================================================
+-- Generated from supabase/migrations/005_broadcast_counts_incremental.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Incremental broadcast aggregate trigger.
@@ -767,8 +771,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/006_automations.sql
+-- SOURCE: generated/migrations/006_automations.sql
 -- ============================================================
+-- Generated from supabase/migrations/006_automations.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 006_automations.sql — Automations feature
@@ -913,8 +918,9 @@ ALTER TABLE automation_pending_executions ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/007_automations_increment_counter.sql
+-- SOURCE: generated/migrations/007_automations_increment_counter.sql
 -- ============================================================
+-- Generated from supabase/migrations/007_automations_increment_counter.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 007_automations_increment_counter.sql
@@ -954,8 +960,9 @@ GRANT EXECUTE ON FUNCTION increment_automation_execution_count(UUID) TO service_
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/008_profile_avatars_storage.sql
+-- SOURCE: generated/migrations/008_profile_avatars_storage.sql
 -- ============================================================
+-- Generated from supabase/migrations/008_profile_avatars_storage.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 008_profile_avatars_storage.sql
@@ -1019,8 +1026,9 @@ CREATE POLICY "Users can delete their own avatar"
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/009_message_actions.sql
+-- SOURCE: generated/migrations/009_message_actions.sql
 -- ============================================================
+-- Generated from supabase/migrations/009_message_actions.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Chat actions: reply linkage + reactions
@@ -1139,8 +1147,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/010_flows.sql
+-- SOURCE: generated/migrations/010_flows.sql
 -- ============================================================
+-- Generated from supabase/migrations/010_flows.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Conversational Flows: stateful, branching WhatsApp chatbot.
@@ -1425,8 +1434,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/011_profile_beta_features.sql
+-- SOURCE: generated/migrations/011_profile_beta_features.sql
 -- ============================================================
+-- Generated from supabase/migrations/011_profile_beta_features.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- Per-account beta feature flag column on `profiles`.
@@ -1471,8 +1481,9 @@ ALTER TABLE profiles
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/012_flows_increment_counter.sql
+-- SOURCE: generated/migrations/012_flows_increment_counter.sql
 -- ============================================================
+-- Generated from supabase/migrations/012_flows_increment_counter.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 012_flows_increment_counter.sql
@@ -1513,8 +1524,9 @@ GRANT EXECUTE ON FUNCTION increment_flow_execution_count(UUID) TO service_role;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/013_whatsapp_config_phone_number_id_unique.sql
+-- SOURCE: generated/migrations/013_whatsapp_config_phone_number_id_unique.sql
 -- ============================================================
+-- Generated from supabase/migrations/013_whatsapp_config_phone_number_id_unique.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- whatsapp_config: enforce one user per phone_number_id
@@ -1603,8 +1615,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/014_message_templates_meta_integration.sql
+-- SOURCE: generated/migrations/014_message_templates_meta_integration.sql
 -- ============================================================
+-- Generated from supabase/migrations/014_message_templates_meta_integration.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- message_templates: Meta-integration columns + raw-enum status
@@ -1807,8 +1820,9 @@ CREATE INDEX IF NOT EXISTS idx_message_templates_meta_template_id
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/015_whatsapp_config_registration.sql
+-- SOURCE: generated/migrations/015_whatsapp_config_registration.sql
 -- ============================================================
+-- Generated from supabase/migrations/015_whatsapp_config_registration.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- whatsapp_config: track Meta Cloud API registration state
@@ -1858,8 +1872,9 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_config_registered_at
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/016_flow_media.sql
+-- SOURCE: generated/migrations/016_flow_media.sql
 -- ============================================================
+-- Generated from supabase/migrations/016_flow_media.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 016_flow_media.sql
@@ -1978,8 +1993,9 @@ CREATE POLICY "Users can delete their own flow media"
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/017_account_sharing.sql
+-- SOURCE: generated/migrations/017_account_sharing.sql
 -- ============================================================
+-- Generated from supabase/migrations/017_account_sharing.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 017_account_sharing.sql — Multi-user accounts (foundation)
@@ -2636,7 +2652,7 @@ CREATE POLICY account_invitations_modify ON account_invitations FOR ALL
 -- to the inviter's account and delete the orphan personal account if
 -- it's still empty.
 -- ============================================================
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP TRIGGER IF EXISTS bbis_wacrm_on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS bbis_wacrm.handle_new_user();
 
 CREATE OR REPLACE FUNCTION bbis_wacrm.handle_new_user()
@@ -2667,14 +2683,15 @@ $$;
 
 ALTER FUNCTION bbis_wacrm.handle_new_user() OWNER TO postgres;
 
-CREATE TRIGGER on_auth_user_created
+CREATE TRIGGER bbis_wacrm_on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION bbis_wacrm.handle_new_user();
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/018_account_member_rpcs.sql
+-- SOURCE: generated/migrations/018_account_member_rpcs.sql
 -- ============================================================
+-- Generated from supabase/migrations/018_account_member_rpcs.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 018_account_member_rpcs.sql — RPCs for member management
@@ -2962,8 +2979,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.transfer_account_ownership(UUID) TO authent
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/019_invitation_rpcs.sql
+-- SOURCE: generated/migrations/019_invitation_rpcs.sql
 -- ============================================================
+-- Generated from supabase/migrations/019_invitation_rpcs.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 019_invitation_rpcs.sql — peek + redeem invitation RPCs
@@ -3205,8 +3223,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.redeem_invitation(TEXT) TO authenticated;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/020_account_sharing_followups.sql
+-- SOURCE: generated/migrations/020_account_sharing_followups.sql
 -- ============================================================
+-- Generated from supabase/migrations/020_account_sharing_followups.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 020_account_sharing_followups.sql — review-board fixes for
@@ -3333,8 +3352,9 @@ CREATE POLICY "Members can delete flow media"
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/021_account_default_currency.sql
+-- SOURCE: generated/migrations/021_account_default_currency.sql
 -- ============================================================
+-- Generated from supabase/migrations/021_account_default_currency.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 021_account_default_currency
@@ -3371,8 +3391,9 @@ ALTER TABLE accounts
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/022_contact_phone_dedup.sql
+-- SOURCE: generated/migrations/022_contact_phone_dedup.sql
 -- ============================================================
+-- Generated from supabase/migrations/022_contact_phone_dedup.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 022_contact_phone_dedup
@@ -3497,8 +3518,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_account_phone_normalized
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/023_chat_media.sql
+-- SOURCE: generated/migrations/023_chat_media.sql
 -- ============================================================
+-- Generated from supabase/migrations/023_chat_media.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 023_chat_media.sql
@@ -3625,8 +3647,9 @@ CREATE POLICY "Members can delete chat media"
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/024_member_presence.sql
+-- SOURCE: generated/migrations/024_member_presence.sql
 -- ============================================================
+-- Generated from supabase/migrations/024_member_presence.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 024_member_presence.sql — team member presence (online / away)
@@ -3732,8 +3755,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/025_filter_contacts_by_tags.sql
+-- SOURCE: generated/migrations/025_filter_contacts_by_tags.sql
 -- ============================================================
+-- Generated from supabase/migrations/025_filter_contacts_by_tags.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 025_filter_contacts_by_tags.sql — server-side tag filter
@@ -3813,8 +3837,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.filter_contacts_by_tags(UUID[], TEXT, INT, 
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/026_api_keys.sql
+-- SOURCE: generated/migrations/026_api_keys.sql
 -- ============================================================
+-- Generated from supabase/migrations/026_api_keys.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 026_api_keys.sql — Public API credentials (groundwork)
@@ -3903,8 +3928,9 @@ CREATE POLICY api_keys_delete ON api_keys FOR DELETE
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/027_notifications.sql
+-- SOURCE: generated/migrations/027_notifications.sql
 -- ============================================================
+-- Generated from supabase/migrations/027_notifications.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- NOTIFICATIONS
@@ -4040,8 +4066,9 @@ END $$;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/028_webhook_endpoints.sql
+-- SOURCE: generated/migrations/028_webhook_endpoints.sql
 -- ============================================================
+-- Generated from supabase/migrations/028_webhook_endpoints.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 028_webhook_endpoints.sql — Outbound event webhooks (public API)
@@ -4149,8 +4176,9 @@ $$ LANGUAGE sql SECURITY DEFINER SET search_path = bbis_wacrm, public;
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/029_ai_reply.sql
+-- SOURCE: generated/migrations/029_ai_reply.sql
 -- ============================================================
+-- Generated from supabase/migrations/029_ai_reply.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 029_ai_reply.sql — AI reply assistant (bring-your-own-key)
@@ -4296,8 +4324,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.claim_ai_reply_slot(uuid, integer) TO servi
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/030_ai_knowledge.sql
+-- SOURCE: generated/migrations/030_ai_knowledge.sql
 -- ============================================================
+-- Generated from supabase/migrations/030_ai_knowledge.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 030_ai_knowledge.sql — AI knowledge base (RAG grounding)
@@ -4506,8 +4535,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, int
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/031_ai_reply_slot_grant.sql
+-- SOURCE: generated/migrations/031_ai_reply_slot_grant.sql
 -- ============================================================
+-- Generated from supabase/migrations/031_ai_reply_slot_grant.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 031_ai_reply_slot_grant.sql — fix: AI auto-reply never fires
@@ -4539,8 +4569,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.claim_ai_reply_slot(uuid, integer) TO servi
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/032_fix_ai_knowledge_membership.sql
+-- SOURCE: generated/migrations/032_fix_ai_knowledge_membership.sql
 -- ============================================================
+-- Generated from supabase/migrations/032_fix_ai_knowledge_membership.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 032_fix_ai_knowledge_membership.sql — stop cross-account KB
@@ -4645,8 +4676,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.match_ai_knowledge_semantic(uuid, text, int
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/033_ai_reply_polish.sql
+-- SOURCE: generated/migrations/033_ai_reply_polish.sql
 -- ============================================================
+-- Generated from supabase/migrations/033_ai_reply_polish.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 033_ai_reply_polish.sql — AI reply assistant polish
@@ -4737,8 +4769,9 @@ CREATE POLICY ai_usage_log_select ON ai_usage_log FOR SELECT
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/034_fix_profiles_update_rls.sql
+-- SOURCE: generated/migrations/034_fix_profiles_update_rls.sql
 -- ============================================================
+-- Generated from supabase/migrations/034_fix_profiles_update_rls.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 034_fix_profiles_update_rls.sql — lock down privilege columns
@@ -4840,8 +4873,9 @@ CREATE TRIGGER enforce_profile_privilege_columns
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/035_interactive_messages.sql
+-- SOURCE: generated/migrations/035_interactive_messages.sql
 -- ============================================================
+-- Generated from supabase/migrations/035_interactive_messages.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 035_interactive_messages.sql
@@ -4907,8 +4941,9 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON quick_replies
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/036_conversation_contact_dedup.sql
+-- SOURCE: generated/migrations/036_conversation_contact_dedup.sql
 -- ============================================================
+-- Generated from supabase/migrations/036_conversation_contact_dedup.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 036_conversation_contact_dedup
@@ -5039,8 +5074,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_account_contact
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/037_webhook_broadcast_reliability.sql
+-- SOURCE: generated/migrations/037_webhook_broadcast_reliability.sql
 -- ============================================================
+-- Generated from supabase/migrations/037_webhook_broadcast_reliability.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 037_webhook_broadcast_reliability
@@ -5199,8 +5235,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/038_broadcast_resume.sql
+-- SOURCE: generated/migrations/038_broadcast_resume.sql
 -- ============================================================
+-- Generated from supabase/migrations/038_broadcast_resume.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 038_broadcast_resume
@@ -5320,8 +5357,9 @@ GRANT EXECUTE ON FUNCTION bbis_wacrm.create_broadcast_with_recipients(UUID, UUID
 
 
 -- ============================================================
--- SOURCE: supabase/migrations/039_inbound_media_mirror.sql
+-- SOURCE: generated/migrations/039_inbound_media_mirror.sql
 -- ============================================================
+-- Generated from supabase/migrations/039_inbound_media_mirror.sql for BBIS WACRM
 SET search_path TO bbis_wacrm, public, extensions;
 -- ============================================================
 -- 039_inbound_media_mirror
