@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
+const DB_SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'bbis_wacrm'
+
 // Lazy, shared service-role client for the Flows engine.
 // Mirrors src/lib/automations/admin-client.ts — same shape so anyone
 // reading either file picks up the convention immediately.
@@ -10,6 +12,7 @@ export function supabaseAdmin(): SupabaseClient {
     _adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { db: { schema: DB_SCHEMA } },
     )
   }
   return _adminClient
