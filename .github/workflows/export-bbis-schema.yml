@@ -23,7 +23,7 @@ jobs:
           mkdir -p generated
           {
             echo "-- Generated from upstream wacrm migrations"
-            echo "-- Target schema is created separately in Supabase"
+            echo "-- All WACRM public-schema references are rewritten to bbis_wacrm"
             echo "SET search_path TO bbis_wacrm, public, extensions;"
             for f in $(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
               echo
@@ -35,8 +35,22 @@ jobs:
               echo
             done
           } > generated/bbis_wacrm_all.sql
+
+          # The upstream template targets public. This fork intentionally
+          # isolates all CRM objects in bbis_wacrm while leaving auth/storage
+          # schemas untouched.
+          sed -i \
+            -e 's/public\./bbis_wacrm\./g' \
+            -e 's/SET search_path = public/SET search_path = bbis_wacrm, public/g' \
+            -e 's/SET search_path TO public/SET search_path TO bbis_wacrm, public/g' \
+            generated/bbis_wacrm_all.sql
+
           wc -l generated/bbis_wacrm_all.sql
           wc -c generated/bbis_wacrm_all.sql
+          if grep -n 'public\.' generated/bbis_wacrm_all.sql; then
+            echo 'Unexpected public schema reference remains' >&2
+            exit 1
+          fi
 
       - name: Persist generated SQL
         shell: bash
@@ -48,7 +62,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Generated SQL unchanged"
           else
-            git commit -m "chore: generate bbis_wacrm schema SQL"
+            git commit -m "chore: generate isolated bbis_wacrm schema SQL"
             git push
           fi
 
